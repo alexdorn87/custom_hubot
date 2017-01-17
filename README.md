@@ -14,11 +14,16 @@ available, etc!
 
 ### New Improvement
 -   This bot has AI feature which is integrated with wit.ai
+
     This bot will catch reminder and alaram it automatically.
+
     And it has rich RESTful api for bot setting.
 -   You can customize this bot freely
-    The original hubot's chatbot core can not be modified freely. (You could change only script of hubot)
+
+    The original hubot's chatbot core can not be modified freely. (You could change only script of hubot).
+
     It was using node modules. so you don't touch anything on bot core functions.
+
     Now you can customize anything of this bot.
 
 ### Running OriBot Locally
