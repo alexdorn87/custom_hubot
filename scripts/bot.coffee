@@ -1,15 +1,45 @@
 express = require 'express'
 cookieParser = require('cookie-parser')
 bodyParser = require("body-parser")
+request = require("request")
 
 Wit = require('node-wit').Wit
 interactive = require('node-wit').interactive
 accessToken = process.argv[2]
-witclient = new Wit({accessToken: "GICI3TOXA5IM7ZIQSM6GIGXLR3UIKD7X"})
 reminder_list = []
 convo_list = []
+waiting_msg = []
 robot_inst = null
 reminder_ct = 0
+actions = {}
+actions['send'] = (request, response) ->
+  {sessionId, context, entities} = request
+  {text, quickreplies} = response
+  robot_inst.send waiting_msg[0].envelope, response.text
+  waiting_msg.slice 0, 1
+  console.log 'user said...', request.text
+  console.log 'sending...', JSON.stringify(response)
+
+actions['gethomework'] = (context, entities) ->
+  console.log "gethomework"
+  console.log entities
+  #{sessionId, context, entities} = request
+  #{text, quickreplies} = response
+  context.homework = 'sunny';
+  #robot_inst.send {msg:"no homework", envelope: ""}
+  #console.log 'user said...', request.text
+  #console.log 'sending...', JSON.stringify(response)
+  return new Promise (resolve, reject) ->
+    console.log "esolve"
+    context.homework = 'sunny';
+    delete context.missingLocation;
+    console.log "resolved"
+    return context
+    ret_promise = witclient.message res.message.text, {}
+    ret_promise.then (data) ->
+      console.log "response"
+witclient = new Wit({accessToken: "GICI3TOXA5IM7ZIQSM6GIGXLR3UIKD7X", actions:actions})
+interactive witclient
 
 #### Basic application initialization
 # Create app instance.
@@ -91,8 +121,8 @@ module.exports = (robot) ->
   #   res.send "Badgers? BADGERS? WE DON'T NEED NO STINKIN BADGERS"
   #
   robot.respond /show your reminders/i, (res) ->
-    err = new Error()
-    console.log err.stack
+#err = new Error()
+#console.log err.stack
     if reminder_list.length
       robot.send res.envelope, "Reminder list : (REMINDER_STRING : REMINDER_TIME)"
       for item in reminder_list
@@ -101,7 +131,6 @@ module.exports = (robot) ->
       res.reply "There is no set Reminder"
 
   robot.respond /(.*)every(.*)/i, (res) ->
-    console.log res
     if convo_list.length
       res.reply "this is in conversation with bot."
     else
@@ -119,6 +148,18 @@ module.exports = (robot) ->
         reminder_ct = reminder_ct + 1
 
   robot.respond /(.*)/i, (res) ->
+    request 'http://quotesondesign.com/wp-json/posts?filter[orderby]=rand&filter[posts_per_page]=1', (error, response, body) ->
+      if !error && response.statusCode == 200
+        response = JSON.parse body
+        res.reply response[0].content
+    return
+  robot.hear /(.*)/i, (res) ->
+    ret_promise = witclient.runActions "user-20170118", res.message.text, {}
+    ret_promise.then (data) ->
+      waiting_msg.push {msg:res.message.text, envelope: res.envelope}
+    return
+
+  robot.hear /(.*)/i, (res) ->
     if convo_list.length
       ret_promise = witclient.message res.message.text, {}
       ret_promise.then (data) ->
@@ -131,6 +172,7 @@ module.exports = (robot) ->
           convo_list.slice 0, 1
     else
       ret_promise = witclient.message res.message.text, {}
+      #ret_promise = witclient.runActions "user-20170118", res.message.text, {}
       ret_promise.then (data) ->
         if data.entities.datetime.length
           reminder_time = data.entities.datetime[0].value
@@ -142,12 +184,12 @@ module.exports = (robot) ->
         job = setTimeout run_reminder.bind(this, data.entities.reminder[0].value, robot, res.envelope, reminder_ct), t
         reminder_list.push {id:reminder_ct, job:job, reminder_str: data.entities.reminder[0].value, reminder_date: reminder_time, envelope: res.envelope}
         reminder_ct = reminder_ct + 1
-        #console.log res
-        #res.reply "#{reminder_time} : #{reminder_str}"
+  #console.log res
+  #res.reply "#{reminder_time} : #{reminder_str}"
 
-    #date = res.match[2]
-    #task = res.match[1]
-    #res.reply "Oh! I will remember and inform you at #{date} about you need to do #{task}"
+  #date = res.match[2]
+  #task = res.match[1]
+  #res.reply "Oh! I will remember and inform you at #{date} about you need to do #{task}"
   robot.hear /^test$/i, (res) ->
     res.send "Test? TESTING? WE DON'T NEED NO TEST, EVERYTHING WORKS!"
 
